@@ -240,6 +240,8 @@ class KisanDrishtiDiagnosticEngine:
             "state": state,
             "district": district,
             "pest_status": diagnostic_payload["pest_status"],
+            "top_candidates": pest_res.get("top_candidates", []),
+            "treatment_summary": treatment or {},
             "prescription_card": advisory_result["prescription_card"],
             "llama_prompt": advisory_result["llama_prompt"],
             "llama_explanation": advisory_result["llama_explanation"],
@@ -249,8 +251,8 @@ class KisanDrishtiDiagnosticEngine:
             "gate_a_passed": True,
             "gate_b_passed": advisory_result["gate_b_passed"],
             "is_borderline": is_borderline,
-            "symptom_checklist": (treatment or {}).get("symptom_checklist", []) if is_borderline else [],
-            "vision_backend": f"ONNXRuntime ({os.path.basename(self.pest_detector.onnx_path)})",
+            "symptom_checklist": (treatment or {}).get("symptom_checklist", []),
+            "vision_backend": getattr(self.pest_detector, "backend_name", f"ONNXRuntime ({os.path.basename(self.pest_detector.onnx_path)})"),
             "vision_latency_ms": pest_res["pest_latency_ms"],
             "severity_latency_ms": 0.0,
             "total_latency_ms": round((time.perf_counter() - t_start) * 1000, 2),
@@ -355,13 +357,34 @@ class KisanDrishtiDiagnosticEngine:
                 "total_latency_ms": round((time.perf_counter() - t_start) * 1000, 2),
             }
 
-        # 4. Leaf-Level Severity Quantification
+        # 4. Leaf-Level Severity Quantification & HSV Pathology Breakdown
         t1 = time.perf_counter()
         is_borderline = conf_val < self.ACCEPT_CONFIDENCE_THRESHOLD
-        severity_pct, severity_stage, annotated_img = self.severity_analyzer.analyze(
+        sev_metrics = self.severity_analyzer.analyze_with_metrics(
             img_bgr, uncertain=is_borderline
         )
+        severity_pct = sev_metrics["severity_pct"]
+        severity_stage = sev_metrics["stage"]
+        annotated_img = sev_metrics["annotated_image"]
+        pathology_metrics = {
+            "leaf_isolation_pct": sev_metrics["leaf_isolation_pct"],
+            "healthy_pct": sev_metrics["healthy_pct"],
+            "chlorosis_pct": sev_metrics["chlorosis_pct"],
+            "necrosis_pct": sev_metrics["necrosis_pct"],
+        }
         sev_latency_ms = (time.perf_counter() - t1) * 1000
+
+        top_indices = np.argsort(probs)[::-1][:4]
+        top_candidates = []
+        for idx in top_indices:
+            cls_name = self.class_names[int(idx)]
+            c_crop, c_dis = cls_name.split("___") if "___" in cls_name else (diagnosed_crop, cls_name)
+            top_candidates.append({
+                "crop": self._normalize_crop(c_crop),
+                "disease": c_dis.replace("_", " "),
+                "label": f"{self._normalize_crop(c_crop)} {c_dis.replace('_', ' ')}",
+                "probability_pct": round(float(probs[int(idx)]) * 100.0, 1),
+            })
 
         # 5. Deterministic SQLite Retrieval
         treatment = self.kb.get_treatment(
@@ -427,6 +450,9 @@ class KisanDrishtiDiagnosticEngine:
             "pest_status": diagnostic_payload["pest_status"],
             "pest_detection": pest_detection,
             "quality": quality,
+            "pathology_metrics": pathology_metrics,
+            "top_candidates": top_candidates,
+            "treatment_summary": treatment or {},
             "prescription_card": card,
             "llama_prompt": advisory_result["llama_prompt"],
             "llama_explanation": advisory_result["llama_explanation"],
@@ -436,7 +462,7 @@ class KisanDrishtiDiagnosticEngine:
             "gate_a_passed": True,
             "gate_b_passed": gate_b_passed,
             "is_borderline": is_borderline,
-            "symptom_checklist": (treatment or {}).get("symptom_checklist", []) if is_borderline else [],
+            "symptom_checklist": (treatment or {}).get("symptom_checklist", []),
             "vision_backend": self.backend,
             "vision_latency_ms": round(cls_latency_ms, 2),
             "severity_latency_ms": round(sev_latency_ms, 2),

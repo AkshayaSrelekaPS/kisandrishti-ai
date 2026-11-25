@@ -753,6 +753,40 @@ class ICARKnowledgeBase:
             },
         }
 
+    def list_all_guidelines(self, lang: str = "en") -> list:
+        """Returns all seeded ICAR/TNAU/CIBRC disease & pest records for the Disease Library."""
+        lang = lang.lower() if lang in ["en", "ta", "hi"] else "en"
+        cursor = self.conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT crop, diagnosis, pathogen_scientific, stage,
+                   cultural_{lang}, organic_{lang}, chemical_{lang}, dosage_{lang},
+                   phi_days, source_citation, zone_applicability, bio_compatibility_note,
+                   checklist_{lang}
+            FROM treatment_guidelines
+            ORDER BY CASE crop WHEN 'Pest' THEN 2 ELSE 1 END, crop, diagnosis
+            """
+        )
+        items = []
+        for r in cursor.fetchall():
+            items.append({
+                "crop": r[0],
+                "diagnosis": r[1],
+                "title": f"{r[0]} — {r[1].replace('_', ' ')}" if r[0] != "Pest" else f"Pest — {r[1].replace('_', ' ')}",
+                "pathogen_scientific": r[2],
+                "stage": r[3],
+                "cultural_action": r[4],
+                "organic_remedy": r[5],
+                "chemical_name": r[6],
+                "chemical_dosage": r[7],
+                "phi_days": r[8],
+                "source_citation": r[9],
+                "zone_applicability": r[10],
+                "bio_compatibility_note": r[11],
+                "symptom_checklist": [c.strip() for c in (r[12] or "").split("|") if c.strip()],
+            })
+        return items
+
 
 if __name__ == "__main__":
     kb = ICARKnowledgeBase()

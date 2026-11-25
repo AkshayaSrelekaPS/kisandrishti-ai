@@ -121,6 +121,17 @@ class PestDetector:
                 "message": f"Gate A Halt (Mode 3): Insect confidence ({conf*100:.1f}%) is below 50%. Capture a closer, sharper insect photo.",
             }
 
+        top_indices = np.argsort(probs)[::-1][:4]
+        top_candidates = [
+            {
+                "crop": "Pest",
+                "disease": self.class_names[int(i)],
+                "label": self.class_names[int(i)].replace("_", " "),
+                "probability_pct": round(float(probs[int(i)]) * 100.0, 1),
+            }
+            for i in top_indices
+        ]
+
         return {
             "status": "SUCCESS",
             "mode": "Mode 3: Image-Level Insect Pest Classification",
@@ -129,4 +140,5 @@ class PestDetector:
             "is_borderline": conf < self.ACCEPT_CONFIDENCE_THRESHOLD,
             "pest_latency_ms": latency_ms,
             "blur_variance": round(blur_var, 2),
+            "top_candidates": top_candidates,
         }

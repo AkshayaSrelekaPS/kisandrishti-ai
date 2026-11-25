@@ -38,6 +38,14 @@ class SeverityAnalyzer:
         - stage (str): 'Healthy', 'Mild', 'Moderate', 'Severe', or 'Uncertain'
         - annotated_image (np.ndarray): visual output with contours and lesion overlays
         """
+        res = self.analyze_with_metrics(leaf_bgr, uncertain=uncertain)
+        return res["severity_pct"], res["stage"], res["annotated_image"]
+
+    def analyze_with_metrics(self, leaf_bgr: np.ndarray, uncertain: bool = False) -> dict:
+        """
+        Quantifies leaf lesion severity and detailed HSV pathology breakdown
+        (leaf isolation %, healthy chlorophyll %, chlorosis %, necrosis %).
+        """
         hsv = cv2.cvtColor(leaf_bgr, cv2.COLOR_BGR2HSV)
 
         # 1. Segment Total Leaf Blade Area
@@ -59,13 +67,28 @@ class SeverityAnalyzer:
         mask_pathogen = cv2.morphologyEx(mask_pathogen, cv2.MORPH_OPEN, kernel_3)
 
         # 3. Calculate Surface Area Metrics
+        total_pixels = max(leaf_bgr.shape[0] * leaf_bgr.shape[1], 1)
         leaf_pixels = int(cv2.countNonZero(mask_leaf))
         lesion_pixels = int(cv2.countNonZero(mask_pathogen))
 
         if leaf_pixels == 0:
-            return 0.0, "Uncertain", leaf_bgr.copy()
+            return {
+                "severity_pct": 0.0,
+                "stage": "Uncertain",
+                "annotated_image": leaf_bgr.copy(),
+                "leaf_isolation_pct": 0.0,
+                "healthy_pct": 0.0,
+                "chlorosis_pct": 0.0,
+                "necrosis_pct": 0.0,
+            }
 
         severity_index = (lesion_pixels / float(leaf_pixels)) * 100.0
+        leaf_isolation_pct = min((leaf_pixels / float(total_pixels)) * 100.0, 100.0)
+        necrosis_px = int(cv2.countNonZero(cv2.bitwise_and(mask_necrosis, mask_leaf)))
+        chlorosis_px = int(cv2.countNonZero(cv2.bitwise_and(mask_chlorosis, mask_leaf)))
+        necrosis_pct = min((necrosis_px / float(leaf_pixels)) * 100.0, 100.0)
+        chlorosis_pct = min((chlorosis_px / float(leaf_pixels)) * 100.0, 100.0)
+        healthy_pct = max(0.0, min(100.0 - severity_index, 100.0))
 
         # 4. Map to Heuristic Leaf-Level Severity Tiers
         if uncertain:
@@ -96,4 +119,12 @@ class SeverityAnalyzer:
         cv2.rectangle(annotated, (10, 10), (350, 50), (0, 0, 0), -1)
         cv2.putText(annotated, text_banner, (20, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_badge, 2)
 
-        return round(severity_index, 2), stage, annotated
+        return {
+            "severity_pct": round(severity_index, 2),
+            "stage": stage,
+            "annotated_image": annotated,
+            "leaf_isolation_pct": round(leaf_isolation_pct, 1),
+            "healthy_pct": round(healthy_pct, 1),
+            "chlorosis_pct": round(chlorosis_pct, 1),
+            "necrosis_pct": round(necrosis_pct, 1),
+        }
