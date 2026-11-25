@@ -1,0 +1,24 @@
+# KisanDrishti AI — Edge Runtime Dependencies (Windows Dev & Raspberry Pi 5 Arm64)
+# Vision runs via ONNX Runtime; Llama 3.2 1B reasoning runs via ExecuTorch (.pte, XNNPACK) with llama.cpp fallback
+
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+onnxruntime>=1.17.0
+opencv-python-headless>=4.9.0; platform_machine == "aarch64"
+opencv-python>=4.9.0; platform_machine != "aarch64"
+numpy>=1.26.0
+pillow>=10.2.0
+psutil>=5.9.0
+pyttsx3>=2.90
+
+# Primary on-device LLM inference runtime (Llama 3.2 1B-Instruct via ExecuTorch)
+executorch>=1.0.0
+pytorch-tokenizers>=1.0.0
+
+# Native neural TTS & STT (offline Sherpa-ONNX <2.0 keeps built-in espeak-ng phonemizer for Piper)
+sherpa-onnx>=1.10.0,<2.0.0
+edge-tts>=6.1.10
+
+# Optional secondary LLM fallback via llama.cpp (Q4_K_M GGUF)
+# llama-cpp-python>=0.2.90

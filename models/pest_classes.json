@@ -1,0 +1,29 @@
+{
+  "model_name": "MobileNetV3-Small-Pest-IP102",
+  "architecture": "mobilenet_v3_small",
+  "mode": "Mode 3: Image-Level Insect Pest Classification",
+  "num_classes": 6,
+  "classes": [
+    "Aphid",
+    "Brown_Planthopper",
+    "Corn_Borer",
+    "Leafminer",
+    "Rice_Leaf_Roller",
+    "Whitefly"
+  ],
+  "val_accuracy": 0.7133,
+  "input_resolution": [
+    224,
+    224
+  ],
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ]
+}

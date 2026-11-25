@@ -1,0 +1,40 @@
+# Python caches & generated comtypes cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+Python/
+
+# Large datasets & generated media (keep sample_leaves & sqlite schema/seed)
+data/crops/
+data/pests/
+data/uploads/
+data/visualizations/
+data/audio_outputs/
+data/audio_cache/
+temp_download/
+kisandrishti-ai/
+hardware/
+
+# Large LLM GGUF/PTE weights, offline voice models, intermediate PyTorch checkpoints & local binaries
+models/*.gguf
+models/*.pte
+models/*.pt
+models/*.onnx.data
+models/tts/
+models/stt/
+models/mobilenetv3_4crops.onnx
+models/mobilenetv3_tomato_potato.onnx
+models/classes.json
+models/confusion_matrix.png
+tools/
+*.part
+
+# Local test artifacts
+output_diagnostic_card.jpg
+test_healthy_diagnostic.jpg
+test_late_blight_diagnostic.jpg
+test_tamil.wav
+test_hindi.wav
