@@ -712,13 +712,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="telemetry-strip">
     <div class="hw-left">
       <span class="live-dot"></span>
-      <span id="hwStatusLine">CONNECTED TO ARM EDGE | Vision: Loading... | LLM: ExecuTorch</span>
+      <span id="hwStatusLine">Vision: Loading... | LLM: ExecuTorch | Voice: Offline</span>
     </div>
-    <div class="hw-pills">
+    <div class="hw-pills" style="justify-content:flex-end;">
+      <span class="hw-pill" id="hwConnectedBadge" style="border-color:#10b981; color:#ecfdf5; background:#064e3b; font-weight:700;">Hardware: Detecting...</span>
+      <span class="hw-pill cyan" id="hwVisionLat">Vision: -- ms</span>
+      <span class="hw-pill cyan" id="hwLlmLat">LLM: -- ms</span>
+      <span class="hw-pill cyan" id="hwPipe" style="font-weight:700;">Total Latency: -- ms</span>
       <span class="hw-pill" id="hwClock">Clock: -- MHz</span>
-      <span class="hw-pill cyan" id="hwPipe">Pipeline: -- ms</span>
-      <span class="hw-pill" id="hwRam">RAM RSS: -- MB</span>
-      <span class="hw-pill" id="hwTemp">SoC Temp: --</span>
+      <span class="hw-pill" id="hwRam">RAM: -- MB</span>
+      <span class="hw-pill" id="hwTemp">Temp: --</span>
     </div>
   </div>
 
@@ -1127,19 +1130,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       }
     }
 
+    function applyLiveTelemetry(telemetry, { visionMs = null, llmMs = null, totalMs = null } = {}) {
+      if (visionMs !== null && visionMs !== undefined)
+        document.getElementById("hwVisionLat").textContent = `Vision: ${visionMs} ms`;
+      if (llmMs !== null && llmMs !== undefined)
+        document.getElementById("hwLlmLat").textContent = `LLM: ${llmMs} ms`;
+      if (totalMs !== null && totalMs !== undefined)
+        document.getElementById("hwPipe").textContent = `Total Latency: ${totalMs} ms`;
+      if (!telemetry) return;
+      if (telemetry.platform)
+        document.getElementById("hwConnectedBadge").textContent = `Connected: ${telemetry.platform}`;
+      document.getElementById("hwClock").textContent =
+        `Clock: ${telemetry.cpu_freq_mhz ? telemetry.cpu_freq_mhz + " MHz" : "Edge CPU"}`;
+      document.getElementById("hwRam").textContent =
+        `RAM: ${telemetry.process_rss_mb || "--"} MB`;
+      document.getElementById("hwTemp").textContent =
+        `Temp: ${telemetry.soc_temp_c !== null && telemetry.soc_temp_c !== undefined ? telemetry.soc_temp_c + " °C" : "N/A"}`;
+    }
+
     function updateTelemetryBar(tel) {
       if (!tel) return;
       const t = tel.telemetry || tel;
       const vision = tel.vision_backend || "ONNXRuntime";
       const llm = tel.llm_backend || "ExecuTorch";
       document.getElementById("hwStatusLine").textContent =
-        `CONNECTED TO ${t.platform || "ARM EDGE"} | Vision: ${vision} | LLM: ${llm}`;
-      document.getElementById("hwClock").textContent =
-        `Clock: ${t.cpu_freq_mhz ? t.cpu_freq_mhz + " MHz" : "Arm Edge"}`;
-      document.getElementById("hwRam").textContent =
-        `RAM RSS: ${t.process_rss_mb || "--"} MB`;
-      document.getElementById("hwTemp").textContent =
-        `SoC Temp: ${t.soc_temp_c !== null && t.soc_temp_c !== undefined ? t.soc_temp_c + " °C" : "N/A"}`;
+        `Vision: ${vision} | LLM: ${llm}`;
+      applyLiveTelemetry(t);
     }
 
     function populateDistricts() {
@@ -1320,12 +1336,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById("analyticsSplitRow").style.display = "grid";
       document.getElementById("bottomDetailTabs").style.display = "block";
 
-      if (d.telemetry) {
-        document.getElementById("hwPipe").textContent = `Pipeline: ${d.total_latency_ms} ms`;
-        document.getElementById("hwRam").textContent = `RAM RSS: ${d.telemetry.process_rss_mb} MB`;
-        document.getElementById("hwTemp").textContent =
-          `SoC Temp: ${d.telemetry.soc_temp_c !== null && d.telemetry.soc_temp_c !== undefined ? d.telemetry.soc_temp_c + " °C" : "N/A"}`;
-      }
+      const lmTop = d.llm_metrics || {};
+      applyLiveTelemetry(d.telemetry, {
+        visionMs: d.vision_latency_ms,
+        llmMs: lmTop.total_llm_ms,
+        totalMs: d.total_latency_ms,
+      });
 
       document.getElementById("heroConfBadge").textContent = `${d.confidence}% Confidence`;
       leafViewMode = "annotated";
@@ -1722,6 +1738,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           document.getElementById("qaAudioMeta").textContent = d.audio_backend || "";
         }
         badge.textContent = `ExecuTorch ${lm.tokens_per_sec || 0} tok/s | TTS ${d.tts_latency_ms || 0} ms`;
+        applyLiveTelemetry(d.telemetry, {
+          llmMs: lm.total_llm_ms,
+          totalMs: d.total_latency_ms,
+        });
       } catch (err) {
         badge.textContent = "Q&A Error: " + err.message;
       }
