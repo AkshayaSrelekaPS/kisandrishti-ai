@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KisanDrishtiAI" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#02110B</item>
+        <item name="android:navigationBarColor">#02110B</item>
+    </style>
+</resources>
