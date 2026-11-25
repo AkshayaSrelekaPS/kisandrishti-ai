@@ -2,12 +2,12 @@
 KisanDrishti AI: Complete 4-Crop End-to-End Trilingual Diagnostic Pipeline
 Integrates:
 - Gate A: Quality Pre-Check (Null, Laplacian Blur, Foliage Ratio) + 4-Crop Identity Check
-- Perception: MobileNetV3-Small via ONNX Runtime (Zero PyTorch runtime overhead)
+- Perception: MobileNetV3-Small via ONNX Runtime (or optional HailoRT NPU .hef on AI HAT+)
 - Calibration: <50% Rejection | 50-75% Borderline Checklist | >=75% High-Confidence Acceptance
 - Severity: OpenCV Vectorized HSV Lesion Surface Area Quantification (S %)
 - Knowledge: Deterministic SQLite ICAR/TNAU/CIBRC Regulatory Database
 - Gate B: 4-Point Advisory Safety Validation Gate
-- Reasoning: Meta Llama 3.2 1B-Instruct (Q4_K_M GGUF via llama.cpp) - cultural explanation only
+- Reasoning: Meta Llama 3.2 1B-Instruct via ExecuTorch (.pte primary, llama.cpp fallback) - cultural explanation only
 - Output: Structured Agronomic Prescription Card, Annotated Leaf, Offline Audio, & Arm Telemetry
 """
 import os
@@ -30,6 +30,7 @@ if BASE_DIR not in sys.path:
 
 from src.vision.severity_analyzer import SeverityAnalyzer
 from src.vision.pest_detector import PestDetector
+from src.vision.hailo_runner import HailoVisionRunner, HAILO_AVAILABLE
 from src.reasoning.icar_db import ICARKnowledgeBase
 from src.advisory.agronomist_engine import MultilingualAgronomistEngine
 from src.audio.voice_assistant import FarmerVoiceAssistant
@@ -71,6 +72,7 @@ class KisanDrishtiDiagnosticEngine:
         self.std = np.array(self.metadata.get("std", [0.229, 0.224, 0.225]), dtype=np.float32)
 
         self.backend = None
+        self.hailo_runner = None
         self.ort_session = None
         self.ort_input_name = None
         self.torch_model = None
@@ -86,7 +88,15 @@ class KisanDrishtiDiagnosticEngine:
         print(f"KisanDrishti Engine ready ({self.num_classes} classes, Vision backend: {self.backend}, LLM backend: {self.agronomist.backend_name})")
 
     def _init_vision_backend(self):
-        """Prefer lightweight ONNX Runtime (zero PyTorch overhead); fall back to PyTorch if unavailable."""
+        """Use HailoRT NPU (.hef) when AI HAT+ is present, else lightweight ONNX Runtime on Arm CPU."""
+        hef_path = os.path.join(MODELS_DIR, "mobilenetv3_4crops.hef")
+        if HAILO_AVAILABLE and os.path.exists(hef_path):
+            runner = HailoVisionRunner(hef_path)
+            if runner.ready:
+                self.hailo_runner = runner
+                self.backend = f"HailoRT NPU ({os.path.basename(hef_path)})"
+                return
+
         if ort is not None:
             for onnx_path in self.onnx_candidates:
                 if os.path.exists(onnx_path):
@@ -125,6 +135,8 @@ class KisanDrishtiDiagnosticEngine:
         return np.expand_dims(chw, axis=0).astype(np.float32)
 
     def _predict_logits(self, input_tensor: np.ndarray) -> np.ndarray:
+        if self.hailo_runner is not None and self.hailo_runner.ready:
+            return self.hailo_runner.infer_logits(input_tensor)
         if self.ort_session is not None:
             outputs = self.ort_session.run(None, {self.ort_input_name: input_tensor})
             return outputs[0][0]

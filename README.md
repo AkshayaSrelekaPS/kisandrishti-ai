@@ -15,7 +15,9 @@
 
 ```bash
 pip install -r requirements.txt
+python setup_llm_model.py
 python -m src.reasoning.icar_db
+python setup_offline_voice_models.py
 python test_pipeline.py
 python -m uvicorn src.web_app:app --host 0.0.0.0 --port 8000
 ```
@@ -23,6 +25,12 @@ python -m uvicorn src.web_app:app --host 0.0.0.0 --port 8000
 ## Raspberry Pi 5 Deployment
 
 ```bash
-chmod +x deploy/install_pi5.sh
+chmod +x deploy/install_pi5.sh deploy/run_kiosk.sh deploy/verify_pi5.sh
 ./deploy/install_pi5.sh
+./deploy/verify_pi5.sh
 ```
+
+* **Local Touchscreen Kiosk (HTTP + Mic allowed on localhost):** `sudo systemctl start kisandrishti.service` → `http://localhost:8000`
+* **Remote Phone / Tablet over LAN (HTTPS for browser microphone):** `./deploy/run_kiosk.sh --https` → `https://<pi-ip>:8443`
+* **Optional Hailo-8 / Hailo-8L AI HAT+ NPU Vision:** See [deploy/HAILO_NPU.md](deploy/HAILO_NPU.md) (vision runs on HailoRT NPU while Meta Llama 3.2 runs separately on ExecuTorch CPU).
+* **Air-Gapped USB Model Transfer:** Run `powershell -ExecutionPolicy Bypass -File deploy\prepare_pi_usb_bundle.ps1 -TargetDir E:\kisandrishti_models` on Windows.

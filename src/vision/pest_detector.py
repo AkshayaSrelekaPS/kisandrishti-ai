@@ -14,6 +14,8 @@ try:
 except ImportError:
     ort = None
 
+from src.vision.hailo_runner import HailoVisionRunner, HAILO_AVAILABLE
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
@@ -23,11 +25,14 @@ class PestDetector:
     REJECT_CONFIDENCE_THRESHOLD = 0.50
     ACCEPT_CONFIDENCE_THRESHOLD = 0.75
 
-    def __init__(self, onnx_path: str = None, classes_path: str = None):
+    def __init__(self, onnx_path: str = None, classes_path: str = None, hef_path: str = None):
         self.onnx_path = onnx_path or os.path.join(MODELS_DIR, "pest_mobilenetv3.onnx")
+        self.hef_path = hef_path or os.path.join(MODELS_DIR, "pest_mobilenetv3.hef")
         self.classes_path = classes_path or os.path.join(MODELS_DIR, "pest_classes.json")
+        self.hailo_runner = None
         self.session = None
         self.input_name = None
+        self.backend_name = "unavailable"
         self.class_names = []
         self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
@@ -39,7 +44,13 @@ class PestDetector:
             self.mean = np.array(meta.get("mean", [0.485, 0.456, 0.406]), dtype=np.float32)
             self.std = np.array(meta.get("std", [0.229, 0.224, 0.225]), dtype=np.float32)
 
-        if ort is not None and os.path.exists(self.onnx_path):
+        if HAILO_AVAILABLE and os.path.exists(self.hef_path):
+            runner = HailoVisionRunner(self.hef_path)
+            if runner.ready:
+                self.hailo_runner = runner
+                self.backend_name = f"HailoRT NPU ({os.path.basename(self.hef_path)})"
+
+        if self.hailo_runner is None and ort is not None and os.path.exists(self.onnx_path):
             opts = ort.SessionOptions()
             opts.intra_op_num_threads = 4
             opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -47,9 +58,10 @@ class PestDetector:
                 self.onnx_path, sess_options=opts, providers=["CPUExecutionProvider"]
             )
             self.input_name = self.session.get_inputs()[0].name
+            self.backend_name = f"ONNXRuntime ({os.path.basename(self.onnx_path)})"
 
     def is_ready(self) -> bool:
-        return self.session is not None and len(self.class_names) > 0
+        return (self.hailo_runner is not None or self.session is not None) and len(self.class_names) > 0
 
     def _preprocess(self, img_bgr: np.ndarray) -> np.ndarray:
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
@@ -89,7 +101,11 @@ class PestDetector:
             }
 
         t0 = time.perf_counter()
-        logits = self.session.run(None, {self.input_name: self._preprocess(img_bgr)})[0][0]
+        inp = self._preprocess(img_bgr)
+        if self.hailo_runner is not None and self.hailo_runner.ready:
+            logits = self.hailo_runner.infer_logits(inp)
+        else:
+            logits = self.session.run(None, {self.input_name: inp})[0][0]
         probs = self._softmax(logits)
         pred_idx = int(np.argmax(probs))
         conf = float(probs[pred_idx])

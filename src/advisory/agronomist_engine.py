@@ -214,6 +214,9 @@ class MultilingualAgronomistEngine:
         ):
             return False
         try:
+            if hasattr(torch, "set_num_threads") and self.n_threads > 0:
+                torch.set_num_threads(self.n_threads)
+            _ = torch.zeros(1)  # Ensure libtorch shared libs are loaded before custom ops
             _load_executorch_extension_libs()
             self._et_runtime = et_rt.Runtime.get()
             self._et_program = self._et_runtime.load_program(self.pte_model_path)

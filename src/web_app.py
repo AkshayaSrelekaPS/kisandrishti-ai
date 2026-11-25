@@ -975,6 +975,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const btn = document.getElementById('btnMic');
       const badge = document.getElementById('qaStatusBadge');
       if (!micRecording) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          badge.textContent = window.isSecureContext
+            ? 'Mic API unavailable in this browser; please type your question.'
+            : 'Mic blocked on HTTP LAN IP. Open http://localhost:8000 on Pi or https://<pi-ip>:8443, or type below.';
+          return;
+        }
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();

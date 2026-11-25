@@ -32,7 +32,8 @@ models/confusion_matrix.png
 tools/
 *.part
 
-# Local test artifacts
+# Local test artifacts & generated TLS certs
+deploy/certs/
 output_diagnostic_card.jpg
 test_healthy_diagnostic.jpg
 test_late_blight_diagnostic.jpg
