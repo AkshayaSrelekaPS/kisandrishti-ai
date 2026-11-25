@@ -143,12 +143,17 @@ chmod +x deploy/install_pi5.sh deploy/run_kiosk.sh deploy/verify_pi5.sh
 
 > **Note on datasets for CLI checks:** Raw training sets (`data/crops/`, `data/pests/`) are excluded by `.gitignore`. Run `python fetch_core_datasets.py` before running `test_mode3_pest.py` or `evaluate_20classes.py` standalone.
 
+#### Live Web Dashboard Screenshots (`src/web_app.py`)
+| AI Analysis & HSV Severity Overlay | Differential Ranking, Pathology & Action Plan | Agronomist AI (ExecuTorch + Sherpa-ONNX Voice) |
+|---|---|---|
+| ![Dashboard AI Analysis](docs/screenshots/dashboard_analysis.jpg) | ![Dashboard Pathology Metrics](docs/screenshots/dashboard_pathology.jpg) | ![Dashboard Agronomist AI](docs/screenshots/dashboard_agronomist.jpg) |
+
 ### 2. Standalone Offline Android Mobile App (`kisandrishti-mobile/`)
 A native **Kotlin + Jetpack Compose** Android app featuring on-device ONNX Runtime inference, HSV lesion Damage Highlight overlay, CameraX live scanner + Gallery upload, SQLite offline 26-condition library, Android EN/TA/HI TTS & STT, persistent scan history, and optional Wi-Fi sync to a Raspberry Pi 5 ExecuTorch server.
 
-| Scan Home | Diagnosis + Damage Highlight | Diagnostic Guide (26) | Farm Scan History | Multilingual Ask AI |
-|---|---|---|---|---|
-| ![Scan Home](docs/screenshots/scan_home.png) | ![Diagnosis Result](docs/screenshots/diagnosis_result.png) | ![Guide](docs/screenshots/diagnostic_guide.png) | ![History](docs/screenshots/farm_history.png) | ![Ask AI](docs/screenshots/ask_ai.png) |
+| Scan Home UI | Live Camera Scanner UI | Diagnosis + Damage Highlight | Diagnostic Guide (26) | Farm Scan History | Multilingual Ask AI |
+|---|---|---|---|---|---|
+| ![App Scan Home](docs/screenshots/app_scan_home.jpg) | ![App Camera Scanner](docs/screenshots/app_camera_scanner.jpg) | ![Diagnosis Result](docs/screenshots/diagnosis_result.png) | ![Guide](docs/screenshots/diagnostic_guide.png) | ![History](docs/screenshots/farm_history.png) | ![Ask AI](docs/screenshots/ask_ai.png) |
 
 Install directly on Android via `v1.0-mobile` release APK or build from `kisandrishti-mobile/` in Android Studio.
 
